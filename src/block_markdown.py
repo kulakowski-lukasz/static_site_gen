@@ -16,65 +16,41 @@ class BlockType(Enum):
 
 
 def markdown_to_blocks(markdown):
-    '''
-    Docstring for markdown_to_blocks
-    
-    :param markdown: It takes a raw Markdown string (representing a full document)
-    :returns: a list of "block" strings
-    '''
-    #split the markdown to blocks, consider only those non missing, and strip them at the end
-    return [block.strip() for block in markdown.split("\n\n") if block != ""]
+    blocks = markdown.split("\n\n")
+    filtered_blocks = []
+    for block in blocks:
+        if block == "":
+            continue
+        block = block.strip()
+        filtered_blocks.append(block)
+    return filtered_blocks
 
 
 def block_to_block_type(block):
-    '''
-    Docstring for block_to_block_type
-    
-    :param block: single block of markdown text
-    :returns: BlockType representing type of block it is
-    '''
-    match block:
-        # Heading: Starts with 1-6 # characters followed by a space
-        case _ if re.match(r"^#{1,6} ", block):
-            return BlockType.HEADING
+    lines = block.split("\n")
 
-        # Multiline Code blocks must start with 3 backticks and a newline, then end with 3 backticks.
-        # [\s\S]* matches any character including newlines
-        case _ if re.match(r"^```\n[\s\S]*```$", block):
-            return BlockType.CODE
-
-        # Every line in a quote block must start with a "greater-than" character and a space: >
-        # Pattern checks for "> " followed by content, then a newline or end of string, repeated for all lines.
-        case _ if re.match(r"^(> .*(\n|$))+$", block):
-            return BlockType.QUOTE
-
-        # Every line in an unordered list block must start with a - character, followed by a space.
-        case _ if re.match(r"^(- .*(\n|$))+$", block):
-            return BlockType.ULIST
-
-        # Every line in an ordered list block must start with a number followed by a . character and a space. The number must start at 1 and increment by 1 for each line.
-        # Note: Validating the specific 'increment by 1' logic (1., 2., 3.) is complex 
-        # for pure regex. This pattern ensures the structural format "Number. Content".
-        case _ if re.match(r"^(\d+\. .*(\n|$))+$", block):
-            # Optional: strict check for 1, 2, 3 incrementation
-            lines = block.split('\n')
-            is_incremental = True
-            for i, line in enumerate(lines):
-                if not line.startswith(f"{i+1}. "):
-                    is_incremental = False
-                    break
-            
-            if is_incremental:
-                return BlockType.OLIST
-            else:
+    if block.startswith(("# ", "## ", "### ", "#### ", "##### ", "###### ")):
+        return BlockType.HEADING
+    if len(lines) > 1 and lines[0].startswith("```") and lines[-1].startswith("```"):
+        return BlockType.CODE
+    if block.startswith(">"):
+        for line in lines:
+            if not line.startswith(">"):
                 return BlockType.PARAGRAPH
-
-        # 6. Paragraph: Fallback for everything else
-        case _:
-            return BlockType.PARAGRAPH
-
-
-
+        return BlockType.QUOTE
+    if block.startswith("- "):
+        for line in lines:
+            if not line.startswith("- "):
+                return BlockType.PARAGRAPH
+        return BlockType.ULIST
+    if block.startswith("1. "):
+        i = 1
+        for line in lines:
+            if not line.startswith(f"{i}. "):
+                return BlockType.PARAGRAPH
+            i += 1
+        return BlockType.OLIST
+    return BlockType.PARAGRAPH
 
 
 def markdown_to_html_node(markdown):
